@@ -1,0 +1,15 @@
+{
+  "name": "perler-beads",
+  "version": "1.0.0",
+  "private": true,
+  "description": "拼豆图纸转换器 — 将任意图片转换为拼豆像素图纸",
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "test": "npm run test -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
