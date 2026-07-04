@@ -10,7 +10,7 @@ export default function ToleranceSlider({ value, onChange }: ToleranceSliderProp
         htmlFor="tolerance"
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.5rem' }}
       >
-        <span>🎯 色块平滑</span>
+        <span>色块平滑</span>
         <span style={{ fontWeight: 400, color: '#7f8c8d', fontSize: '0.85rem' }}>
           {value === 0 ? '关闭' : value <= 33 ? '轻度' : value <= 66 ? '中等' : '强度'}
           {' · '}{value}%

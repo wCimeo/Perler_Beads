@@ -4,6 +4,7 @@ import { upload } from '../middleware/upload.js';
 import { getPalette, getAvailableModes } from '../services/colorService.js';
 import { processImage, getImageMetadata } from '../services/imageService.js';
 import { matchPixels, buildMaterials, mergeSimilarColors } from '../services/matchingService.js';
+import { quantizeColors } from '../services/quantizationService.js';
 import { PRESET_SIZES, DEFAULT_MAX_SIZE, MAX_SIZE_LIMIT } from '../config.js';
 import type { ConvertResponse } from '../types/index.js';
 
@@ -19,6 +20,7 @@ const router = Router();
  *   - targetSize: number | "auto" (preset size value or auto-scale)
  *   - maxSize: number (max side length in auto mode, 1-300, default 52)
  *   - tolerance: number (0-100 color merge tolerance)
+ *   - numColors: number (0-50, default 0=off) — K-Means quantization cluster count
  */
 router.post(
   '/',
@@ -52,7 +54,6 @@ router.post(
       let targetHeight: number;
 
       if (targetSizeRaw === 'auto') {
-        // auto mode: proportional scaling
         let maxSize = maxSizeRaw ? parseInt(maxSizeRaw, 10) : DEFAULT_MAX_SIZE;
         if (isNaN(maxSize) || maxSize < 1 || maxSize > MAX_SIZE_LIMIT) {
           maxSize = DEFAULT_MAX_SIZE;
@@ -63,7 +64,6 @@ router.post(
         targetWidth = Math.max(1, Math.round(meta.width * scale));
         targetHeight = Math.max(1, Math.round(meta.height * scale));
       } else {
-        // preset size
         const size = parseInt(targetSizeRaw || '', 10);
         if (isNaN(size) || !PRESET_SIZES.includes(size as typeof PRESET_SIZES[number])) {
           res.status(400).json({
@@ -75,19 +75,30 @@ router.post(
         targetHeight = size;
       }
 
-      // 4. Image processing
-      const { pixels } = await processImage(req.file.buffer, targetWidth, targetHeight);
+      // 4. Parse numColors
+      const numColorsRaw = req.body.numColors as string | undefined;
+      let numColors = numColorsRaw ? parseInt(numColorsRaw, 10) : 0;
+      if (isNaN(numColors) || numColors < 0) numColors = 0;
+      if (numColors > 50) numColors = 50;
 
-      // 5. Color matching
+      // 5. Image processing (resize → raw pixels)
+      let { pixels } = await processImage(req.file.buffer, targetWidth, targetHeight);
+
+      // 6. Optional: K-Means color quantization
+      if (numColors > 0) {
+        pixels = quantizeColors(pixels, numColors);
+      }
+
+      // 7. Color matching
       let grid = matchPixels(pixels, palette);
 
-      // 5b. Color merging (tolerance > 0 merges similar colors)
+      // 8. Color merging (tolerance > 0 merges similar colors using Lab ΔE)
       const tolerance = toleranceRaw ? parseFloat(toleranceRaw) : 0;
       if (tolerance > 0) {
         grid = mergeSimilarColors(grid, Math.min(tolerance, 100));
       }
 
-      // 6. Material statistics
+      // 9. Material statistics
       const materials = buildMaterials(grid);
 
       const response: ConvertResponse = {

@@ -42,7 +42,7 @@ export default function MaterialsList({
 
   const resolveColor = (mark: string) => {
     const repl = replacements[mark];
-    if (repl) return { hex: repl.hex, mark: repl.name };
+    if (repl) return { hex: repl.hex, mark: repl.mark };
     return null;
   };
 
@@ -114,7 +114,7 @@ export default function MaterialsList({
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (pc.name !== m.name) onReplace(m.name, pc);
+                          if (pc.mark !== m.name) onReplace(m.name, pc);
                           setOpenMark(null);
                           setSearch('');
                         }}

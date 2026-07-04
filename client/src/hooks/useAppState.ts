@@ -12,6 +12,7 @@ export interface AppState {
   selectedSize: SizeOption;
   maxSize: number;
   tolerance: number;
+  numColors: number;
   result: ConvertResponse | null;
   loading: boolean;
   error: string | null;
@@ -25,6 +26,7 @@ const initialState: AppState = {
   selectedSize: 52,
   maxSize: DEFAULT_MAX_SIZE,
   tolerance: 0,
+  numColors: 0,
   result: null,
   loading: false,
   error: null,
@@ -36,11 +38,12 @@ type Action =
   | { type: 'SET_SIZE'; size: SizeOption }
   | { type: 'SET_MAX_SIZE'; maxSize: number }
   | { type: 'SET_TOLERANCE'; tolerance: number }
+  | { type: 'SET_NUM_COLORS'; numColors: number }
   | { type: 'CONVERT_START' }
   | { type: 'CONVERT_SUCCESS'; result: ConvertResponse }
   | { type: 'CONVERT_ERROR'; error: string }
-  | { type: 'GO_TO_FORM' }        // 回表单（保留图片）
-  | { type: 'RESET' };            // 完全重置
+  | { type: 'GO_TO_FORM' }
+  | { type: 'RESET' };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -59,6 +62,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, maxSize: action.maxSize };
     case 'SET_TOLERANCE':
       return { ...state, tolerance: action.tolerance };
+    case 'SET_NUM_COLORS':
+      return { ...state, numColors: action.numColors };
     case 'CONVERT_START':
       return { ...state, loading: true, error: null };
     case 'CONVERT_SUCCESS':
@@ -107,6 +112,10 @@ export function useAppState() {
     dispatch({ type: 'SET_TOLERANCE', tolerance });
   }, []);
 
+  const setNumColors = useCallback((numColors: number) => {
+    dispatch({ type: 'SET_NUM_COLORS', numColors });
+  }, []);
+
   const startConvert = useCallback(() => {
     dispatch({ type: 'CONVERT_START' });
   }, []);
@@ -134,6 +143,7 @@ export function useAppState() {
     setSize,
     setMaxSize,
     setTolerance,
+    setNumColors,
     startConvert,
     convertSuccess,
     convertError,

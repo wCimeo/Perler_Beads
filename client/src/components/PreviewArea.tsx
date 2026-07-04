@@ -27,20 +27,20 @@ export default function PreviewArea({ result, originalImageUrl, onReUpload, onCh
 
   const effectiveGrid = useMemo(() => {
     let g: MatchedPixel[][] = result.grid;
-    if (Object.keys(replacements).length > 0) g = g.map(r => r.map(p => { const x = replacements[p.mark]; return x ? { hex: x.hex, mark: x.name, distance: p.distance } : p; }));
-    if (Object.keys(singleEdits).length > 0) g = g.map((r, y) => r.map((p, x) => { const e = singleEdits[`${y}-${x}`]; return e ? { hex: e.hex, mark: e.name, distance: p.distance } : p; }));
+    if (Object.keys(replacements).length > 0) g = g.map(r => r.map(p => { const x = replacements[p.mark]; return x ? { hex: x.hex, mark: x.mark, name: x.name, distance: p.distance } : p; }));
+    if (Object.keys(singleEdits).length > 0) g = g.map((r, y) => r.map((p, x) => { const e = singleEdits[`${y}-${x}`]; return e ? { hex: e.hex, mark: e.mark, name: e.name, distance: p.distance } : p; }));
     return g;
   }, [result.grid, replacements, singleEdits]);
 
   const effectiveMaterials = useMemo(() => {
     const m = new Map<string, { name: string; hex: string; count: number }>();
-    for (const r of effectiveGrid) for (const p of r) { const e = m.get(p.mark); if (e) e.count++; else m.set(p.mark, { name: p.mark, hex: p.hex, count: 1 }); }
+    for (const r of effectiveGrid) for (const p of r) { const e = m.get(p.name); if (e) e.count++; else m.set(p.name, { name: p.name, hex: p.hex, count: 1 }); }
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   }, [effectiveGrid]);
 
   const effectiveResult = useMemo(() => ({ ...result, grid: effectiveGrid, materials: effectiveMaterials }), [result, effectiveGrid, effectiveMaterials]);
 
-  const handleReplace = useCallback((f: string, t: PaletteColor | null) => { setReplacements(p => { if (t === null || t.name === f) { if (!(f in p)) return p; setHist(h => [...h, { ...p }]); const n = { ...p }; delete n[f]; return n; } setHist(h => [...h, { ...p }]); return { ...p, [f]: t }; }); }, []);
+  const handleReplace = useCallback((f: string, t: PaletteColor | null) => { setReplacements(p => { if (t === null || t.mark === f) { if (!(f in p)) return p; setHist(h => [...h, { ...p }]); const n = { ...p }; delete n[f]; return n; } setHist(h => [...h, { ...p }]); return { ...p, [f]: t }; }); }, []);
   const handleUndo = useCallback(() => { setHist(h => { if (h.length === 0) return h; setReplacements(h[h.length - 1]); return h.slice(0, -1); }); }, []);
   const handleSingleEdit = useCallback((y: number, x: number, color: PaletteColor | null) => { setSingleEdits(p => { if (color === null) { const n = { ...p }; delete n[`${y}-${x}`]; return n; } return { ...p, [`${y}-${x}`]: color }; }); }, []);
   const handleExportPng = () => exportCanvasRef.current?.exportPng();

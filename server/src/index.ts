@@ -13,7 +13,7 @@ for (const [mode, colors] of palettes) {
 
 const app = createApp();
 
-app.listen(DEFAULT_PORT, () => {
+app.listen(DEFAULT_PORT, '127.0.0.1', () => {
   console.log(`拼豆图纸转换器服务端已启动：http://localhost:${DEFAULT_PORT}`);
   console.log(`API 端点：`);
   console.log(`  GET  /api/palettes`);

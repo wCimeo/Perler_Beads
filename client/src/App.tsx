@@ -11,6 +11,7 @@ export default function App() {
     setSize,
     setMaxSize,
     setTolerance,
+    setNumColors,
     startConvert,
     convertSuccess,
     convertError,
@@ -36,6 +37,7 @@ export default function App() {
             selectedSize={state.selectedSize}
             maxSize={state.maxSize}
             tolerance={state.tolerance}
+            numColors={state.numColors}
             loading={state.loading}
             error={state.error}
             onModeChange={setMode}
@@ -43,6 +45,7 @@ export default function App() {
             onSizeChange={setSize}
             onMaxSizeChange={setMaxSize}
             onToleranceChange={setTolerance}
+            onNumColorsChange={setNumColors}
             onStartConvert={startConvert}
             onConvertSuccess={convertSuccess}
             onConvertError={convertError}

@@ -1,5 +1,6 @@
 export interface PaletteColor {
   name: string;
+  mark: string;
   hex: string;
   r: number;
   g: number;
@@ -9,6 +10,7 @@ export interface PaletteColor {
 export interface MatchedPixel {
   hex: string;
   mark: string;
+  name: string;
   distance: number;
 }
 

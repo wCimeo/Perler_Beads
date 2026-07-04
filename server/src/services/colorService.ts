@@ -1,10 +1,11 @@
 import { readFileSync } from 'fs';
 import type { ColorEntry, PaletteColor, PaletteMode } from '../types/index.js';
 import { COLORS_PATH } from '../config.js';
+import { rgbToLab } from './colorSpaceService.js';
 
 type PaletteMap = Map<PaletteMode, PaletteColor[]>;
 
-/** �?hex 字符串解析为 RGB �?*/
+/** �?hex 字符串解析为 RGB �?*/
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const num = parseInt(hex, 16);
   return {
@@ -14,7 +15,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-/** 加载并解�?colors.json，返回按模式索引的色�?Map */
+/** 加载并解�?colors.json，返回按模式索引的色�?Map */
 export function loadPalettes(path: string = COLORS_PATH): PaletteMap {
   const raw = readFileSync(path, 'utf-8');
   const data = JSON.parse(raw) as Record<string, ColorEntry[]>;
@@ -24,10 +25,13 @@ export function loadPalettes(path: string = COLORS_PATH): PaletteMap {
   for (const [mode, entries] of Object.entries(data)) {
     const colors: PaletteColor[] = entries.map((entry) => {
       const rgb = hexToRgb(String(entry.color));
+      const lab = rgbToLab(rgb.r, rgb.g, rgb.b);
       return {
         name: entry.name,
         hex: String(entry.color),
+        mark: entry.name.replace(/[^A-Za-z\d]/g, ''),
         ...rgb,
+        lab: { L: lab.L, A: lab.A, B: lab.B },
       };
     });
     palettes.set(mode, colors);
@@ -38,7 +42,7 @@ export function loadPalettes(path: string = COLORS_PATH): PaletteMap {
 
 let _palettes: PaletteMap | null = null;
 
-/** 获取已缓存的色卡（若未加载则自动加载�?*/
+/** 获取已缓存的色卡（若未加载则自动加载�?*/
 export function getPalettes(): PaletteMap {
   if (!_palettes) {
     _palettes = loadPalettes();
