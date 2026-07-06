@@ -5,10 +5,10 @@ import { DEFAULT_PORT } from './config.js';
 // 启动时预加载色卡到内存
 console.log('加载色卡数据...');
 const palettes = getPalettes();
-const modeList = Array.from(palettes.keys());
-console.log(`已加载 ${modeList.length} 套色卡：${modeList.join(', ')}`);
-for (const [mode, colors] of palettes) {
-  console.log(`  ${mode}: ${colors.length} 色`);
+const keyList = Array.from(palettes.keys());
+console.log(`已加载 ${keyList.length} 套色卡组合：${keyList.join(', ')}`);
+for (const [key, colors] of palettes) {
+  console.log(`  ${key}: ${colors.length} 色`);
 }
 
 const app = createApp();

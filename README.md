@@ -36,8 +36,10 @@ Perler_Beads/
 │       ├── types/index.ts       # 类型定义
 │       ├── services/
 │       │   ├── colorService.ts   # 色卡加载与解析
+│       │   ├── colorSpaceService.ts # sRGB→Lab 颜色空间转换
 │       │   ├── imageService.ts   # sharp 缩放 + 像素提取
-│       │   └── matchingService.ts # 加权 RGB 距离颜色匹配
+│       │   ├── matchingService.ts # CIE Lab ΔE 颜色匹配 + 色块平滑
+│       │   └── quantizationService.ts # K-Means++ 颜色聚类
 │       ├── middleware/
 │       │   ├── upload.ts        # multer 文件上传
 │       │   └── errorHandler.ts  # 全局错误处理
@@ -88,8 +90,11 @@ Perler_Beads/
 |------|------|------|
 | `image` | File | 图片文件 |
 | `mode` | string | 色卡模式（如 "mard"） |
+| `colorFile` | string | 颜色数量文件："full"（290全量色）或 "221"（221基础色），默认 "full" |
 | `targetSize` | number \| "auto" | 预设尺寸（25/40/52/64/72/90/104/120/156/208）或自动等比缩放 |
 | `maxSize` | number | auto 模式下的最大边长（1-300，默认 52） |
+| `tolerance` | number | 色块平滑强度 0-100（0=关闭），合并视觉相近的色块，减少孤立噪声 |
+| `numColors` | number | K-Means++ 颜色聚类数量 0-50（0=关闭），压缩图片总颜色数、保留主色调 |
 
 **返回**:
 ```json
@@ -104,13 +109,15 @@ Perler_Beads/
 
 ## 颜色匹配算法
 
-使用加权 RGB 距离（更适合人类视觉感知）：
+使用 CIE Lab ΔE (CIE76) 色差公式进行感知颜色匹配：
 
 ```
-distance = sqrt(2 × ΔR² + 4 × ΔG² + 4 × ΔB²)
+1. sRGB像素 → 线性 RGB → CIE XYZ (D65) → CIE L*a*b*
+2. 色卡颜色在加载时预计算 Lab 值
+3. 对每个像素在所选色卡中寻找 ΔE 最小的颜色作为匹配结果
 ```
 
-对图片中的每个像素，在所选色卡中寻找距离最小的颜色作为匹配结果。
+ΔE ≈ 2.3 为"刚能察觉的差异"(JND)，相较于简单 RGB 距离更能准确反映人眼对颜色的感知差异。
 
 ## 扩展指南
 
@@ -121,4 +128,14 @@ distance = sqrt(2 × ΔR² + 4 × ΔG² + 4 × ΔB²)
 修改 `server/src/config.ts` 中的 `PRESET_SIZES` 数组和 `client/src/utils/constants.ts` 中的同名数组。
 
 ### 替换颜色匹配算法
-修改 `server/src/services/matchingService.ts`，保持函数签名不变即可。
+修改 `server/src/services/matchingService.ts` 中的 `findBestMatch` 函数，保持函数签名不变即可。
+
+### 启用服务端静态文件部署
+
+```bash
+# 构建客户端后服务端可直接提供静态文件
+npm run build
+cd server && npm start
+# 访问 http://localhost:3001
+```
+构建后 server 自动检测 `client/dist/index.html` 并切换到生产模式提供服务。

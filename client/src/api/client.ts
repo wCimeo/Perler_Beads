@@ -6,15 +6,16 @@ const api = axios.create({
   timeout: 30000,
 });
 
-/** 获取可用的色卡模式列表 */
-export async function fetchPalettes(): Promise<string[]> {
-  const { data } = await api.get<{ palettes: string[] }>('/palettes');
-  return data.palettes;
+/** 获取可用的色卡模式列表 + colorFile 选项 */
+export async function fetchPalettes(): Promise<{ palettes: string[]; colorFiles: string[] }> {
+  const { data } = await api.get<{ palettes: string[]; colorFiles: string[] }>('/palettes');
+  return data;
 }
 
-/** 获取指定模式的色卡数据 */
-export async function fetchPaletteColors(mode: string): Promise<PaletteColor[]> {
-  const { data } = await api.get<{ colors: PaletteColor[] }>(`/colors/${mode}`);
+/** 获取指定模式和色卡文件的颜色数据 */
+export async function fetchPaletteColors(mode: string, colorFile?: string): Promise<PaletteColor[]> {
+  const params = colorFile ? { file: colorFile } : {};
+  const { data } = await api.get<{ colors: PaletteColor[] }>(`/colors/${mode}`, { params });
   return data.colors;
 }
 

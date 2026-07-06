@@ -11,7 +11,7 @@ export default function PaletteSelect({ value, onChange }: PaletteSelectProps) {
 
   useEffect(() => {
     fetchPalettes()
-      .then(setPalettes)
+      .then(({ palettes }) => setPalettes(palettes))
       .catch(() => setPalettes(['mard', 'coco']));
   }, []);
 

@@ -14,8 +14,11 @@ export const DEFAULT_PALETTE = 'mard';
 /** 服务端默认端口 */
 export const DEFAULT_PORT = 3001;
 
-/** colors.json 文件路径 */
+/** colors.json 文件路径（全量色卡） */
 export const COLORS_PATH = resolve(__dirname, '../../assets/colors.json');
+
+/** colors_221.json 文件路径（基础色卡） */
+export const COLORS_221_PATH = resolve(__dirname, '../../assets/colors_221.json');
 
 /** Canvas 导出每格像素大小 */
 export const CELL_SIZE = 30;

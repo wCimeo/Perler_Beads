@@ -20,10 +20,11 @@ export default function PreviewArea({ result, originalImageUrl, onReUpload, onCh
   const [replacements, setReplacements] = useState<Record<string, PaletteColor>>({});
   const [pixelEditMode, setPixelEditMode] = useState(false);
   const [singleEdits, setSingleEdits] = useState<Record<string, PaletteColor>>({});
-  const [editTarget, setEditTarget] = useState<{ y: number; x: number } | null>(null);
+  const [editTargets, setEditTargets] = useState<Set<string>>(new Set());
   const [editSearch, setEditSearch] = useState('');
+  const [replaceCount, setReplaceCount] = useState(0);
 
-  useEffect(() => { fetchPaletteColors(result.mode).then(setPaletteColors).catch(() => {}); }, [result.mode]);
+  useEffect(() => { fetchPaletteColors(result.mode, result.colorFile).then(setPaletteColors).catch(() => {}); }, [result.mode, result.colorFile]);
 
   const effectiveGrid = useMemo(() => {
     let g: MatchedPixel[][] = result.grid;
@@ -42,9 +43,37 @@ export default function PreviewArea({ result, originalImageUrl, onReUpload, onCh
 
   const handleReplace = useCallback((f: string, t: PaletteColor | null) => { setReplacements(p => { if (t === null || t.mark === f) { if (!(f in p)) return p; setHist(h => [...h, { ...p }]); const n = { ...p }; delete n[f]; return n; } setHist(h => [...h, { ...p }]); return { ...p, [f]: t }; }); }, []);
   const handleUndo = useCallback(() => { setHist(h => { if (h.length === 0) return h; setReplacements(h[h.length - 1]); return h.slice(0, -1); }); }, []);
-  const handleSingleEdit = useCallback((y: number, x: number, color: PaletteColor | null) => { setSingleEdits(p => { if (color === null) { const n = { ...p }; delete n[`${y}-${x}`]; return n; } return { ...p, [`${y}-${x}`]: color }; }); }, []);
+
+  const handleSingleEdit = useCallback((y: number, x: number, color: PaletteColor | null) => {
+    setSingleEdits(p => { if (color === null) { const n = { ...p }; delete n[`${y}-${x}`]; return n; } return { ...p, [`${y}-${x}`]: color }; });
+  }, []);
+
+  const handleBatchEdit = useCallback((color: PaletteColor) => {
+    setSingleEdits(p => {
+      const n = { ...p };
+      editTargets.forEach(key => { n[key] = color; });
+      return n;
+    });
+    setReplaceCount(c => c + 1);
+    setEditTargets(new Set());
+    setEditSearch('');
+  }, [editTargets]);
+
   const handleExportPng = () => exportCanvasRef.current?.exportPng();
-  const handleCellSelect = useCallback((y: number, x: number) => { setEditTarget({ y, x }); setEditSearch(''); }, []);
+
+  const handleCellSelect = useCallback((y: number, x: number, ctrl: boolean) => {
+    const key = `${y}-${x}`;
+    setEditTargets(prev => {
+      const next = ctrl ? new Set(prev) : new Set<string>();
+      if (ctrl && prev.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+    setEditSearch('');
+  }, []);
 
   const filteredEditColors = paletteColors.filter(pc => {
     if (!editSearch) return true; const q = editSearch.toLowerCase();
@@ -53,12 +82,12 @@ export default function PreviewArea({ result, originalImageUrl, onReUpload, onCh
 
   if (!result || !result.grid || !result.materials) return (<div className="preview-area"><div className="form-card"><p style={{ textAlign: 'center', color: '#7f8c8d', padding: '2rem' }}>结果不可用，请重新上传。</p><button className="btn btn-primary btn-block" onClick={onReUpload}>重新上传</button></div></div>);
 
-  const { mode, width, height } = result;
+  const { mode, colorFile, width, height } = result;
   return (
     <div className="preview-area">
       <div className="preview-header">
-        <div><h2>转换结果</h2><p className="preview-meta">色卡模式：{mode?.toUpperCase?.() ?? '?'} · 尺寸：{width}×{height}</p></div>
-        <ActionBar onReUpload={onReUpload} onChangeSize={onChangeSize} onExportPng={handleExportPng} exporting={exporting} undoCount={hist.length} onUndo={handleUndo} editMode={pixelEditMode} onToggleEdit={() => setPixelEditMode(p => !p)} />
+        <div><h2>转换结果</h2><p className="preview-meta">色卡模式：{mode?.toUpperCase?.() ?? '?'} · 颜色数量：{colorFile === '221' ? '221 基础色' : '全量色'} · 尺寸：{width}×{height}</p></div>
+        <ActionBar onReUpload={onReUpload} onChangeSize={onChangeSize} onExportPng={handleExportPng} exporting={exporting} undoCount={hist.length} onUndo={handleUndo} editMode={pixelEditMode} onToggleEdit={() => { setPixelEditMode(p => !p); setEditTargets(new Set()); }} />
       </div>
       <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {originalImageUrl && (
@@ -68,20 +97,24 @@ export default function PreviewArea({ result, originalImageUrl, onReUpload, onCh
           </div>
         )}
         <div style={{ flex: '1 1 auto', minWidth: 0, position: 'relative' }}>
-          <PixelGrid grid={effectiveGrid} width={width} height={height} pixelEditMode={pixelEditMode} editTarget={editTarget} onCellSelect={handleCellSelect} />
-          {pixelEditMode && editTarget && (
+          <PixelGrid grid={effectiveGrid} width={width} height={height} pixelEditMode={pixelEditMode} editTargets={editTargets} onCellSelect={handleCellSelect} />
+          {pixelEditMode && editTargets.size > 0 && (
             <div style={{ position: 'absolute', right: -216, top: 0, width: 200, zIndex: 50, background: '#fff', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', padding: '0.75rem', maxHeight: '60vh', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <h3 style={{ fontSize: '0.95rem', color: '#2c3e50', margin: 0 }}>替换像素</h3>
-                <button onClick={() => setEditTarget(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#999' }}>×</button>
+                <h3 style={{ fontSize: '0.95rem', color: '#2c3e50', margin: 0 }}>替换像素{editTargets.size > 1 ? `（已选 ${editTargets.size} 格）` : ''}</h3>
+                <button onClick={() => setEditTargets(new Set())} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#999' }}>×</button>
               </div>
-              <p style={{ fontSize: 12, color: '#7f8c8d', marginBottom: '0.5rem' }}>位置：第 {editTarget.y + 1} 行，第 {editTarget.x + 1} 列</p>
+              {editTargets.size === 1 && (
+                <p style={{ fontSize: 12, color: '#7f8c8d', marginBottom: '0.5rem' }}>
+                  按住 Ctrl/Cmd 点击可多选
+                </p>
+              )}
               <input type="text" placeholder="搜索颜色..." autoFocus value={editSearch} onChange={(e) => setEditSearch(e.target.value)}
                 style={{ width: '100%', padding: '6px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, outline: 'none', marginBottom: '0.5rem' }} />
               <div style={{ overflow: 'auto', flex: 1 }}>
                 {filteredEditColors.map(pc => (
                   <div key={String(pc.hex)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', cursor: 'pointer', fontSize: 12, borderRadius: 4 }}
-                    onClick={() => { handleSingleEdit(editTarget.y, editTarget.x, pc); setEditTarget(null); setEditSearch(''); }}
+                    onClick={() => { handleBatchEdit(pc); }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                     <span style={{ display: 'inline-block', width: 18, height: 18, borderRadius: 3, border: '1px solid #ccc', backgroundColor: `#${pc.hex}`, flexShrink: 0 }} />

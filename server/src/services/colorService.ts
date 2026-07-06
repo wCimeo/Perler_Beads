@@ -1,11 +1,11 @@
 import { readFileSync } from 'fs';
 import type { ColorEntry, PaletteColor, PaletteMode } from '../types/index.js';
-import { COLORS_PATH } from '../config.js';
+import { COLORS_PATH, COLORS_221_PATH } from '../config.js';
 import { rgbToLab } from './colorSpaceService.js';
 
-type PaletteMap = Map<PaletteMode, PaletteColor[]>;
+type PaletteMap = Map<string, PaletteColor[]>;
 
-/** �?hex 字符串解析为 RGB �?*/
+/** hex 字符串解析为 RGB */
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const num = parseInt(hex, 16);
   return {
@@ -15,14 +15,16 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-/** 加载并解�?colors.json，返回按模式索引的色�?Map */
-export function loadPalettes(path: string = COLORS_PATH): PaletteMap {
-  const raw = readFileSync(path, 'utf-8');
-  const data = JSON.parse(raw) as Record<string, ColorEntry[]>;
+/** 加载并解析色卡文件，返回按 "mode:colorFile" 键索引的色卡 Map */
+export function loadPalettes(): PaletteMap {
+  const palettes = new Map<string, PaletteColor[]>();
 
-  const palettes = new Map<PaletteMode, PaletteColor[]>();
-
-  for (const [mode, entries] of Object.entries(data)) {
+  for (const [key, path] of Object.entries({ 'mard:full': COLORS_PATH, 'coco:full': COLORS_PATH, 'mard:221': COLORS_221_PATH, 'coco:221': COLORS_221_PATH })) {
+    const raw = readFileSync(path, 'utf-8');
+    const data = JSON.parse(raw) as Record<string, ColorEntry[]>;
+    const [mode] = key.split(':');
+    const entries = data[mode];
+    if (!entries) continue;
     const colors: PaletteColor[] = entries.map((entry) => {
       const rgb = hexToRgb(String(entry.color));
       const lab = rgbToLab(rgb.r, rgb.g, rgb.b);
@@ -34,7 +36,7 @@ export function loadPalettes(path: string = COLORS_PATH): PaletteMap {
         lab: { L: lab.L, A: lab.A, B: lab.B },
       };
     });
-    palettes.set(mode, colors);
+    palettes.set(key, colors);
   }
 
   return palettes;
@@ -42,7 +44,6 @@ export function loadPalettes(path: string = COLORS_PATH): PaletteMap {
 
 let _palettes: PaletteMap | null = null;
 
-/** 获取已缓存的色卡（若未加载则自动加载�?*/
 export function getPalettes(): PaletteMap {
   if (!_palettes) {
     _palettes = loadPalettes();
@@ -50,17 +51,20 @@ export function getPalettes(): PaletteMap {
   return _palettes;
 }
 
-/** 获取指定模式的色卡，不存在则返回 undefined */
-export function getPalette(mode: PaletteMode): PaletteColor[] | undefined {
-  return getPalettes().get(mode);
+export function getPalette(mode: string, colorFile: string): PaletteColor[] | undefined {
+  return getPalettes().get(`${mode}:${colorFile}`);
 }
 
-/** 获取所有可用模式名 */
 export function getAvailableModes(): string[] {
-  return Array.from(getPalettes().keys());
+  const keys = Array.from(getPalettes().keys());
+  return [...new Set(keys.map(k => k.split(':')[0]))];
 }
 
-/** 测试用：重置缓存 */
+export function getAvailableColorFiles(): string[] {
+  const keys = Array.from(getPalettes().keys());
+  return [...new Set(keys.map(k => k.split(':')[1]))];
+}
+
 export function resetPalettes(): void {
   _palettes = null;
 }

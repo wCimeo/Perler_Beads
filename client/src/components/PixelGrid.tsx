@@ -8,11 +8,11 @@ const ROW_COL_W = 22;
 interface PixelGridProps {
   grid: MatchedPixel[][]; width: number; height: number;
   pixelEditMode?: boolean;
-  editTarget?: { y: number; x: number } | null;
-  onCellSelect?: (y: number, x: number) => void;
+  editTargets?: Set<string> | null;
+  onCellSelect?: (y: number, x: number, ctrl: boolean) => void;
 }
 
-export default function PixelGrid({ grid, width, height, pixelEditMode, editTarget, onCellSelect }: PixelGridProps) {
+export default function PixelGrid({ grid, width, height, pixelEditMode, editTargets, onCellSelect }: PixelGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [baseScale, setBaseScale] = useState(1);
@@ -56,7 +56,7 @@ export default function PixelGrid({ grid, width, height, pixelEditMode, editTarg
   const handleCellClick = useCallback((e: React.MouseEvent, y: number, x: number) => {
     if (!pixelEditMode || !onCellSelect) return;
     e.stopPropagation();
-    onCellSelect(y, x);
+    onCellSelect(y, x, e.ctrlKey || e.metaKey);
   }, [pixelEditMode, onCellSelect]);
 
   const effectiveScale = baseScale * userZoom;
@@ -104,9 +104,10 @@ export default function PixelGrid({ grid, width, height, pixelEditMode, editTarg
               const pixelCells = row.map((pixel, x) => {
                 const bg = `#${pixel.hex}`;
                 const fg = getContrastTextColor(pixel.hex);
-                const isSelected = editTarget && editTarget.y === y && editTarget.x === x;
+                const key = `${y}-${x}`;
+                const isSelected = editTargets?.has(key) ?? false;
                 return (
-                  <div key={`${y}-${x}`} className="pixel-cell"
+                  <div key={key} className="pixel-cell"
                     style={{ backgroundColor: bg, color: fg, border: '0.5px solid #ddd', boxSizing: 'border-box', cursor: pixelEditMode ? 'crosshair' : 'inherit', outline: isSelected ? '2px solid #e74c3c' : 'none' }}
                     title={`${pixel.mark} (#${pixel.hex})`}
                     onClick={(e) => handleCellClick(e, y, x)}>

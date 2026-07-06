@@ -9,6 +9,7 @@ export interface AppState {
   imageFile: File | null;
   imagePreviewUrl: string | null;
   selectedMode: string;
+  colorFile: string;
   selectedSize: SizeOption;
   maxSize: number;
   tolerance: number;
@@ -23,6 +24,7 @@ const initialState: AppState = {
   imageFile: null,
   imagePreviewUrl: null,
   selectedMode: 'mard',
+  colorFile: '221',
   selectedSize: 52,
   maxSize: DEFAULT_MAX_SIZE,
   tolerance: 0,
@@ -35,6 +37,7 @@ const initialState: AppState = {
 type Action =
   | { type: 'SET_IMAGE'; file: File; previewUrl: string }
   | { type: 'SET_MODE'; mode: string }
+  | { type: 'SET_COLOR_FILE'; colorFile: string }
   | { type: 'SET_SIZE'; size: SizeOption }
   | { type: 'SET_MAX_SIZE'; maxSize: number }
   | { type: 'SET_TOLERANCE'; tolerance: number }
@@ -56,6 +59,8 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case 'SET_MODE':
       return { ...state, selectedMode: action.mode };
+    case 'SET_COLOR_FILE':
+      return { ...state, colorFile: action.colorFile };
     case 'SET_SIZE':
       return { ...state, selectedSize: action.size };
     case 'SET_MAX_SIZE':
@@ -100,6 +105,10 @@ export function useAppState() {
     dispatch({ type: 'SET_MODE', mode });
   }, []);
 
+  const setColorFile = useCallback((colorFile: string) => {
+    dispatch({ type: 'SET_COLOR_FILE', colorFile });
+  }, []);
+
   const setSize = useCallback((size: SizeOption) => {
     dispatch({ type: 'SET_SIZE', size });
   }, []);
@@ -140,6 +149,7 @@ export function useAppState() {
     state,
     setImage,
     setMode,
+    setColorFile,
     setSize,
     setMaxSize,
     setTolerance,

@@ -47,6 +47,7 @@ export interface ConvertOptions {
 
 export interface ConvertResponse {
   mode: string;
+  colorFile: string;
   width: number;
   height: number;
   grid: MatchedPixel[][];

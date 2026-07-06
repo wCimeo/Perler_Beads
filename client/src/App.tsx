@@ -8,6 +8,7 @@ export default function App() {
     state,
     setImage,
     setMode,
+    setColorFile,
     setSize,
     setMaxSize,
     setTolerance,
@@ -32,6 +33,7 @@ export default function App() {
         {effectiveView === 'form' ? (
           <ConverterForm
             mode={state.selectedMode}
+            colorFile={state.colorFile}
             imageFile={state.imageFile}
             imagePreviewUrl={state.imagePreviewUrl}
             selectedSize={state.selectedSize}
@@ -41,6 +43,7 @@ export default function App() {
             loading={state.loading}
             error={state.error}
             onModeChange={setMode}
+            onColorFileChange={setColorFile}
             onImageChange={setImage}
             onSizeChange={setSize}
             onMaxSizeChange={setMaxSize}
