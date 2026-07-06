@@ -5,9 +5,10 @@ import {
   xyzToLab,
   rgbToLab,
   deltaE,
+  weightedLabDistance,
 } from '../colorSpaceService.js';
 
-describe('sRGB → Linear RGB', () => {
+describe('sRGB to Linear RGB', () => {
   it('black maps to 0', () => {
     const { r, g, b } = srgbToLinearRgb(0, 0, 0);
     expect(r).toBeCloseTo(0, 6);
@@ -24,20 +25,19 @@ describe('sRGB → Linear RGB', () => {
 
   it('mid-gray gives roughly linear light', () => {
     const { r, g, b } = srgbToLinearRgb(128, 128, 128);
-    // sRGB 128 → linear approx 0.21586
     expect(r).toBeCloseTo(0.21586, 3);
   });
 });
 
-describe('Linear RGB → XYZ (D65)', () => {
-  it('full white → D65 reference Y=1', () => {
+describe('Linear RGB to XYZ (D65)', () => {
+  it('full white to D65 reference Y=1', () => {
     const { x, y, z } = linearRgbToXyz(1, 1, 1);
-    expect(x).toBeCloseTo(0.95047, 4); // D65 X
-    expect(y).toBeCloseTo(1.0, 4);     // D65 Y
-    expect(z).toBeCloseTo(1.08883, 4); // D65 Z
+    expect(x).toBeCloseTo(0.95047, 4);
+    expect(y).toBeCloseTo(1.0, 4);
+    expect(z).toBeCloseTo(1.08883, 4);
   });
 
-  it('black → zero', () => {
+  it('black to zero', () => {
     const { x, y, z } = linearRgbToXyz(0, 0, 0);
     expect(x).toBe(0);
     expect(y).toBe(0);
@@ -45,15 +45,15 @@ describe('Linear RGB → XYZ (D65)', () => {
   });
 });
 
-describe('XYZ → CIE L*a*b*', () => {
-  it('D65 white → L=100, a=0, b=0', () => {
+describe('XYZ to CIE L*a*b*', () => {
+  it('D65 white to L=100, a=0, b=0', () => {
     const lab = xyzToLab(0.95047, 1.0, 1.08883);
     expect(lab.L).toBeCloseTo(100, 1);
     expect(lab.A).toBeCloseTo(0, 1);
     expect(lab.B).toBeCloseTo(0, 1);
   });
 
-  it('black → L=0', () => {
+  it('black to L=0', () => {
     const lab = xyzToLab(0, 0, 0);
     expect(lab.L).toBeCloseTo(0, 1);
     expect(lab.A).toBeCloseTo(0, 1);
@@ -64,7 +64,6 @@ describe('XYZ → CIE L*a*b*', () => {
 describe('rgbToLab (combined)', () => {
   it('converts pure red sRGB(255,0,0) to reasonable Lab', () => {
     const lab = rgbToLab(255, 0, 0);
-    // Pure red in Lab: L≈53, A≈80, B≈67
     expect(lab.L).toBeGreaterThan(40);
     expect(lab.L).toBeLessThan(60);
     expect(lab.A).toBeGreaterThan(60);
@@ -73,7 +72,6 @@ describe('rgbToLab (combined)', () => {
 
   it('converts pure green sRGB(0,255,0) to reasonable Lab', () => {
     const lab = rgbToLab(0, 255, 0);
-    // Pure green in Lab: L≈88, A≈-86, B≈83
     expect(lab.L).toBeGreaterThan(80);
     expect(lab.A).toBeLessThan(-60);
     expect(lab.B).toBeGreaterThan(60);
@@ -81,7 +79,6 @@ describe('rgbToLab (combined)', () => {
 
   it('converts pure blue sRGB(0,0,255) to reasonable Lab', () => {
     const lab = rgbToLab(0, 0, 255);
-    // Pure blue in Lab: L≈32, A≈79, B≈-108
     expect(lab.L).toBeGreaterThan(20);
     expect(lab.L).toBeLessThan(40);
     expect(lab.B).toBeLessThan(-80);
@@ -96,13 +93,44 @@ describe('Delta E CIE76', () => {
 
   it('returns a positive value for different colors', () => {
     const d = deltaE({ L: 100, A: 0, B: 0 }, { L: 0, A: 0, B: 0 });
-    expect(d).toBe(100); // L difference = 100
+    expect(d).toBe(100);
   });
 
   it('is symmetric', () => {
     const c1 = { L: 60, A: 15, B: -30 };
     const c2 = { L: 45, A: -20, B: 10 };
     expect(deltaE(c1, c2)).toBeCloseTo(deltaE(c2, c1), 10);
+  });
+});
+
+describe('weightedLabDistance', () => {
+  it('returns 0 for identical colors with default weights', () => {
+    const d = weightedLabDistance({ L: 50, A: 10, B: -20 }, { L: 50, A: 10, B: -20 });
+    expect(d).toBe(0);
+  });
+
+  it('L difference is scaled by wL=1.5 by default', () => {
+    const d = weightedLabDistance({ L: 60, A: 0, B: 0 }, { L: 50, A: 0, B: 0 });
+    expect(d).toBeCloseTo(15, 5);
+  });
+
+  it('A/B differences use weight 1.0 by default', () => {
+    const d = weightedLabDistance({ L: 50, A: 10, B: 0 }, { L: 50, A: 0, B: 0 });
+    expect(d).toBeCloseTo(10, 5);
+  });
+
+  it('accepts custom weights', () => {
+    const d = weightedLabDistance(
+      { L: 100, A: 0, B: 0 }, { L: 0, A: 0, B: 0 },
+      { wL: 2.0, wA: 1.0, wB: 1.0 },
+    );
+    expect(d).toBeCloseTo(200, 5);
+  });
+
+  it('is symmetric', () => {
+    const c1 = { L: 60, A: 15, B: -30 };
+    const c2 = { L: 45, A: -20, B: 10 };
+    expect(weightedLabDistance(c1, c2)).toBeCloseTo(weightedLabDistance(c2, c1), 10);
   });
 });
 
@@ -114,7 +142,6 @@ describe('Round-trip consistency', () => {
     expect(Number.isNaN(lab.B)).toBe(false);
     expect(lab.L).toBeGreaterThan(0);
     expect(lab.L).toBeLessThan(100);
-    // A and B should be near 0 for gray
     expect(Math.abs(lab.A)).toBeLessThan(1);
     expect(Math.abs(lab.B)).toBeLessThan(1);
   });
@@ -136,7 +163,6 @@ describe('Round-trip consistency', () => {
       expect(Number.isFinite(lab.A)).toBe(true);
       expect(Number.isFinite(lab.B)).toBe(true);
       expect(lab.L).toBeGreaterThanOrEqual(0);
-      // Floating-point error may push pure white slightly past 100
       expect(lab.L).toBeLessThanOrEqual(100.1);
     }
   });

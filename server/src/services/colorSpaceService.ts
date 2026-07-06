@@ -1,18 +1,18 @@
 /**
  * Color space conversion utilities.
  *
- * Implements the full sRGB → CIE Lab conversion chain:
- *   sRGB (gamma-encoded) → linear RGB → XYZ (D65) → CIE L*a*b* (CIE 1976)
+ * Implements the full sRGB -> CIE Lab conversion chain:
+ *   sRGB (gamma-encoded) -> linear RGB -> XYZ (D65) -> CIE L*a*b* (CIE 1976)
  *
  * Reference: IEC 61966-2-1 (sRGB), CIE 15:2004
  */
 
-// ── D65 reference white ────────────────────────────────────────────
+// D65 reference white
 const D65_X = 0.95047;
 const D65_Y = 1.0;
 const D65_Z = 1.08883;
 
-// ── sRGB gamma ─────────────────────────────────────────────────────
+// sRGB gamma
 
 /** Inverse sRGB companding (linearize a single channel, 0-1 range) */
 function srgbToLinear(channel: number): number {
@@ -21,8 +21,8 @@ function srgbToLinear(channel: number): number {
 }
 
 /**
- * Convert an sRGB triplet to linear-light RGB (all values 0–1).
- * Step 1 of the sRGB → Lab chain.
+ * Convert an sRGB triplet to linear-light RGB (all values 0-1).
+ * Step 1 of the sRGB -> Lab chain.
  */
 export function srgbToLinearRgb(
   r: number,
@@ -36,8 +36,8 @@ export function srgbToLinearRgb(
   };
 }
 
-// ── linear RGB → XYZ (D65) ─────────────────────────────────────────
-// Standard CIE 1931 2° observer matrix, D65 adapted.
+// linear RGB -> XYZ (D65)
+// Standard CIE 1931 2deg observer matrix, D65 adapted.
 
 function mulMatrix(
   m: [number, number, number][],
@@ -50,7 +50,7 @@ function mulMatrix(
   ];
 }
 
-// sRGB → XYZ linear transform
+// sRGB -> XYZ linear transform
 const RGB2XYZ: [number, number, number][] = [
   [0.4124564, 0.3575761, 0.1804375],
   [0.2126729, 0.7151522, 0.0721750],
@@ -58,8 +58,8 @@ const RGB2XYZ: [number, number, number][] = [
 ];
 
 /**
- * Convert linear RGB (0–1) to CIE XYZ (D65 illuminant, 2° observer).
- * Step 2 of the sRGB → Lab chain.
+ * Convert linear RGB (0-1) to CIE XYZ (D65 illuminant, 2deg observer).
+ * Step 2 of the sRGB -> Lab chain.
  */
 export function linearRgbToXyz(
   lr: number,
@@ -70,10 +70,10 @@ export function linearRgbToXyz(
   return { x, y, z };
 }
 
-// ── XYZ → CIE L*a*b* ───────────────────────────────────────────────
+// XYZ -> CIE L*a*b*
 
-const LAB_EPSILON = 216 / 24389; // (6/29)³
-const LAB_KAPPA = 24389 / 27;    // (29/3)³
+const LAB_EPSILON = 216 / 24389; // (6/29)^3
+const LAB_KAPPA = 24389 / 27;    // (29/3)^3
 
 function xyzF(t: number): number {
   return t > LAB_EPSILON ? Math.cbrt(t) : (LAB_KAPPA * t + 16) / 116;
@@ -81,9 +81,9 @@ function xyzF(t: number): number {
 
 /**
  * Convert CIE XYZ to CIE L*a*b* (CIE 1976).
- * Step 3 of the sRGB → Lab chain.
+ * Step 3 of the sRGB -> Lab chain.
  *
- * L* range: 0–100
+ * L* range: 0-100
  * a* range: roughly -128 to 127
  * b* range: roughly -128 to 127
  */
@@ -103,7 +103,7 @@ export function xyzToLab(
   };
 }
 
-/** Combined sRGB → linear RGB → XYZ → Lab in one call */
+/** Combined sRGB -> linear RGB -> XYZ -> Lab in one call */
 export function rgbToLab(
   r: number,
   g: number,
@@ -114,7 +114,7 @@ export function rgbToLab(
   return xyzToLab(xyz.x, xyz.y, xyz.z);
 }
 
-// ── Delta E ────────────────────────────────────────────────────────
+// Delta E
 
 /** Simple Lab object / protocol used by deltaE */
 export interface LabColor {
@@ -127,11 +127,40 @@ export interface LabColor {
  * Delta E CIE 1976 (CIE76).
  * Euclidean distance in CIE L*a*b* space.
  *
- * A ΔE of ~2.3 is considered a "just noticeable difference" (JND).
+ * A delta E of ~2.3 is considered a "just noticeable difference" (JND).
  */
 export function deltaE(c1: LabColor, c2: LabColor): number {
   const dL = c1.L - c2.L;
   const dA = c1.A - c2.A;
   const dB = c1.B - c2.B;
+  return Math.sqrt(dL * dL + dA * dA + dB * dB);
+}
+
+// Weighted Lab Distance
+
+export interface WeightedLabWeights {
+  wL: number;
+  wA: number;
+  wB: number;
+}
+
+/**
+ * Weighted Euclidean distance in CIE L*a*b* space.
+ *
+ * Allows per-channel weighting:
+ *   - Higher wL emphasizes luminance consistency (fewer brightness shifts)
+ *   - Default weights: wL=1.5, wA=1.0, wB=1.0
+ */
+export function weightedLabDistance(
+  c1: LabColor,
+  c2: LabColor,
+  weights?: Partial<WeightedLabWeights>,
+): number {
+  const wL = weights?.wL ?? 1.5;
+  const wA = weights?.wA ?? 1.0;
+  const wB = weights?.wB ?? 1.0;
+  const dL = (c1.L - c2.L) * wL;
+  const dA = (c1.A - c2.A) * wA;
+  const dB = (c1.B - c2.B) * wB;
   return Math.sqrt(dL * dL + dA * dA + dB * dB);
 }

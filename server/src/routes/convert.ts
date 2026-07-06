@@ -5,8 +5,10 @@ import { getPalette, getAvailableModes } from '../services/colorService.js';
 import { processImage, getImageMetadata } from '../services/imageService.js';
 import { matchPixels, buildMaterials, mergeSimilarColors } from '../services/matchingService.js';
 import { quantizeColors } from '../services/quantizationService.js';
+import { sobelEdgeDetect } from '../services/edgeDetectionService.js';
+import { spatialRefine } from '../services/spatialRefinementService.js';
 import { PRESET_SIZES, DEFAULT_MAX_SIZE, MAX_SIZE_LIMIT } from '../config.js';
-import type { ConvertResponse } from '../types/index.js';
+import type { ConvertResponse, RgbColor } from '../types/index.js';
 
 const router = Router();
 
@@ -29,7 +31,7 @@ router.post(
 
       if (!mode || !getAvailableModes().includes(mode)) {
         res.status(400).json({
-          error: `Invalid palette mode "${mode}". Available: ${getAvailableModes().join(', ')}`,
+          error: 'Invalid palette mode "' + mode + '". Available: ' + getAvailableModes().join(', '),
         });
         return;
       }
@@ -37,7 +39,7 @@ router.post(
       const palette = getPalette(mode, colorFile);
       if (!palette) {
         res.status(400).json({
-          error: `Palette not found for mode="${mode}" colorFile="${colorFile}"`,
+          error: 'Palette not found for mode="' + mode + '" colorFile="' + colorFile + '"',
         });
         return;
       }
@@ -58,7 +60,7 @@ router.post(
         const size = parseInt(targetSizeRaw || '', 10);
         if (isNaN(size) || !PRESET_SIZES.includes(size as typeof PRESET_SIZES[number])) {
           res.status(400).json({
-            error: `Invalid size "${targetSizeRaw}". Available: ${PRESET_SIZES.join(', ')}`,
+            error: 'Invalid size "' + targetSizeRaw + '". Available: ' + PRESET_SIZES.join(', '),
           });
           return;
         }
@@ -73,12 +75,41 @@ router.post(
 
       let { pixels } = await processImage(req.file.buffer, targetWidth, targetHeight);
 
+      // Stage 1: Sobel edge detection
+      const edgeMask = sobelEdgeDetect(pixels);
+
+      // Stage 2: K-Means++ color quantization (optional)
+      let labels: number[][] = [];
+      let centroids: RgbColor[] = [];
+
       if (numColors > 0) {
-        pixels = quantizeColors(pixels, numColors);
+        const quantResult = quantizeColors(pixels, numColors);
+        pixels = quantResult.pixels;
+        labels = quantResult.labels;
+        centroids = quantResult.centroids;
       }
 
+      // Stage 3: Spatial coherence smoothing (skip edges)
+      if (numColors > 0 && labels.length > 0) {
+        labels = spatialRefine(labels, edgeMask);
+        // Reconstruct pixel grid from refined labels and centroids
+        const height = labels.length;
+        const width = labels[0]?.length ?? 0;
+        const refinedPixels: RgbColor[][] = [];
+        for (let y = 0; y < height; y++) {
+          const row: RgbColor[] = [];
+          for (let x = 0; x < width; x++) {
+            row.push({ ...centroids[labels[y][x]] });
+          }
+          refinedPixels.push(row);
+        }
+        pixels = refinedPixels;
+      }
+
+      // Stage 4: Match all pixels to real palette using weighted Lab
       let grid = matchPixels(pixels, palette);
 
+      // Stage 5: Optional legacy color merge (tolerance)
       const tolerance = toleranceRaw ? parseFloat(toleranceRaw) : 0;
       if (tolerance > 0) {
         grid = mergeSimilarColors(grid, Math.min(tolerance, 100));

@@ -1,12 +1,12 @@
 import type { PaletteColor, MatchedPixel, MaterialItem } from '../types/index.js';
-import { deltaE, rgbToLab } from './colorSpaceService.js';
+import { deltaE, rgbToLab, weightedLabDistance } from './colorSpaceService.js';
 
 export function labDistance(
   pixel: { r: number; g: number; b: number },
   color: PaletteColor,
 ): number {
   const lab = rgbToLab(pixel.r, pixel.g, pixel.b);
-  return deltaE(lab, color.lab);
+  return weightedLabDistance(lab, color.lab);
 }
 
 export function weightedRgbDistance(

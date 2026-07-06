@@ -11,12 +11,21 @@ import type { RgbColor } from '../types/index.js';
 export interface QuantizeOptions {
   /** Maximum iterations (default 20) */
   maxIter?: number;
-  /** Fraction of pixels to sample (0–1). Default 1.0 (all pixels).
+  /** Fraction of pixels to sample (0-1). Default 1.0 (all pixels).
    *  Lower values speed up clustering on large images. */
   sampleRate?: number;
 }
 
-// ── helpers ────────────────────────────────────────────────────────
+export interface QuantizeResult {
+  /** Quantized pixel grid where each pixel = its cluster centroid */
+  pixels: RgbColor[][];
+  /** Cluster label (0..k-1) for each pixel, same dimensions as pixels */
+  labels: number[][];
+  /** The k cluster centroids (RGB) */
+  centroids: RgbColor[];
+}
+
+// helpers
 
 function rgbDist(a: RgbColor, b: RgbColor): number {
   const dr = a.r - b.r;
@@ -33,7 +42,7 @@ function centroid(points: RgbColor[]): RgbColor {
   return { r: Math.round(sr / n), g: Math.round(sg / n), b: Math.round(sb / n) };
 }
 
-// ── K-Means++ initialization ──────────────────────────────────────
+// K-Means++ initialization
 
 /**
  * Select k initial centroids using K-Means++ seeding.
@@ -75,7 +84,7 @@ function kmeansPlusPlus(data: RgbColor[], k: number, random: () => number): numb
   return centroids;
 }
 
-// ── Lloyd iteration ────────────────────────────────────────────────
+// Lloyd iteration
 
 function assignClusters(data: RgbColor[], means: RgbColor[]): number[] {
   const n = data.length;
@@ -103,28 +112,28 @@ function recomputeMeans(data: RgbColor[], labels: number[], k: number): RgbColor
   return groups.map(centroid);
 }
 
-// ── public API ─────────────────────────────────────────────────────
+// public API
 
 /**
  * Quantize a 2D pixel grid using K-Means++ clustering.
  *
  * @param pixels  2D pixel grid (row-major)
- * @param k       Number of color clusters (2–256 recommended)
+ * @param k       Number of color clusters (2-256 recommended)
  * @param options Optional tuning parameters
- * @returns       New 2D grid where each pixel is replaced by its cluster centroid
+ * @returns       QuantizeResult with pixels, labels, and centroids
  */
 export function quantizeColors(
   pixels: RgbColor[][],
   k: number,
   options: QuantizeOptions = {},
-): RgbColor[][] {
+): QuantizeResult {
   const maxIter = options.maxIter ?? 20;
   const height = pixels.length;
-  if (height === 0) return [];
+  if (height === 0) return { pixels: [], labels: [], centroids: [] };
   const width = pixels[0].length;
-  if (width === 0) return pixels;
+  if (width === 0) return { pixels: pixels, labels: pixels.map(() => []), centroids: [] };
 
-  // Clamp k to valid range (k=0 → default to 1)
+  // Clamp k to valid range (k=0 => default to 1)
   k = Math.max(1, Math.min(k, 256));
 
   // Flatten
@@ -166,22 +175,26 @@ export function quantizeColors(
   // Map each pixel in the flat grid to its nearest centroid
   const finalLabels = assignClusters(flat, means);
 
-  // Reconstruct 2D grid
-  const result: RgbColor[][] = [];
+  // Reconstruct 2D grid AND build 2D labels
+  const resultPixels: RgbColor[][] = [];
+  const resultLabels: number[][] = [];
   let idx = 0;
   for (let y = 0; y < height; y++) {
-    const row: RgbColor[] = [];
+    const pixelRow: RgbColor[] = [];
+    const labelRow: number[] = [];
     for (let x = 0; x < width; x++) {
-      row.push({ ...means[finalLabels[idx]] });
+      pixelRow.push({ ...means[finalLabels[idx]] });
+      labelRow.push(finalLabels[idx]);
       idx++;
     }
-    result.push(row);
+    resultPixels.push(pixelRow);
+    resultLabels.push(labelRow);
   }
 
-  return result;
+  return { pixels: resultPixels, labels: resultLabels, centroids: means };
 }
 
-// ── Seeded PRNG (mulberry32) ──────────────────────────────────────
+// Seeded PRNG (mulberry32)
 
 function mulberry32(seed: number): () => number {
   return () => {

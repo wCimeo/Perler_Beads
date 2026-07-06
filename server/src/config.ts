@@ -31,3 +31,21 @@ export const DEFAULT_MAX_SIZE = 52;
 
 /** auto 模式下最大边长上限 */
 export const MAX_SIZE_LIMIT = 300;
+
+/** 加权 Lab 距离 — L* 通道权重（强调亮度一致性） */
+export const LAB_WEIGHT_L = 1.5;
+
+/** 加权 Lab 距离 — a* 通道权重 */
+export const LAB_WEIGHT_A = 1.0;
+
+/** 加权 Lab 距离 — b* 通道权重 */
+export const LAB_WEIGHT_B = 1.0;
+
+/** 空间平滑邻域窗口大小（奇数，5 = 5×5 窗口） */
+export const SPATIAL_WINDOW = 5;
+
+/** 空间平滑高斯核 σ */
+export const SPATIAL_SIGMA = 1.5;
+
+/** Sobel 边缘检测分位数阈值（百分比，0-100） */
+export const EDGE_PERCENTILE = 85;
